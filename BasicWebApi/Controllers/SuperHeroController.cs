@@ -1,5 +1,6 @@
 ﻿using BasicWebApi.Data;
 using BasicWebApi.Entity;
+using BasicWebApi.Repositories;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,61 +11,67 @@ namespace BasicWebApi.Controllers
     [ApiController]
     public class SuperHeroController : ControllerBase
     {
+        private readonly ISuperHeroRepository _superHeroRepository;
 
-        private readonly DataContext _context;
-
-        public SuperHeroController(DataContext context)
+        public SuperHeroController(ISuperHeroRepository superHeroRepository)
         {
-            _context = context;
+            _superHeroRepository = superHeroRepository;
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<SuperHEro>>> GetAllHeroes()
+        public IActionResult GetAllSuperHeroes()
         {
-            var heroes = await _context.SuperHeroes.ToListAsync();
-            return Ok(heroes);
+            var superHeroes = _superHeroRepository.GetAllSuperHeroes();
+            return Ok(superHeroes);
         }
+
         [HttpGet("{id}")]
-        public async Task<ActionResult<SuperHEro>> GetHero(int id)
+        public IActionResult GetSuperHero(int id)
         {
-            var hero = await _context.SuperHeroes.FindAsync(id);
-            if (hero is null) return BadRequest("Hero not found");
-            return Ok(hero);
+            var superHero = _superHeroRepository.GetSuperHero(id);
+            if (superHero == null)
+            {
+                return NotFound();
+            }
+            return Ok(superHero);
         }
+
         [HttpPost]
-        public async Task<ActionResult<List<SuperHEro>>> AddHero(SuperHEro hero)
+        public IActionResult CreateSuperHero(SuperHEro superHero)
         {
-            _context.SuperHeroes.Add(hero);
-            await _context.SaveChangesAsync();
-
-            return Ok(await _context.SuperHeroes.ToListAsync());
+            if (superHero == null)
+            {
+                return BadRequest();
+            }
+            _superHeroRepository.AddSuperHero(superHero);
+            return CreatedAtAction(nameof(GetSuperHero), new {id = superHero.Id },superHero);
         }
-        [HttpPut]
-        public async Task<ActionResult<List<SuperHEro>>> UpdateHero(SuperHEro updatedHero)
+        [HttpPut("{id}")]
+        public IActionResult UpdateSuperHero(int id, SuperHEro superHero)
         {
-            var dbHero = await _context.SuperHeroes.FindAsync(updatedHero.Id);
-            if (dbHero is null) return BadRequest("Hero not found");
+            if(superHero == null || id != superHero.Id)
+            {
+                return BadRequest();
+            }
+            var existingCharacter = _superHeroRepository.GetSuperHero(id);
+            if(existingCharacter == null)
+                return NotFound();
 
-            dbHero.Name = updatedHero.Name;
-            dbHero.FirstName = updatedHero.FirstName;
-            dbHero.LastName = updatedHero.LastName;
-            dbHero.Place = updatedHero.Place;
+            _superHeroRepository.UpdateSuperHero(superHero);
+            return NoContent();
 
-            await _context.SaveChangesAsync();
-
-            return Ok(await _context.SuperHeroes.ToListAsync());
         }
 
-        [HttpDelete]
-        public async Task<ActionResult<List<SuperHEro>>> DeleteHero(int id)
+        [HttpDelete("{id}")]
+        public IActionResult DeleteSuperHero(int id)
         {
-            var dbHero = await _context.SuperHeroes.FindAsync(id);
-            if (dbHero is null) return BadRequest("Hero not found");
-            _context.SuperHeroes.Remove(dbHero);
+            var superHero = _superHeroRepository.GetSuperHero(id);
+            if (superHero == null)
+                return NotFound();
 
-            await _context.SaveChangesAsync();
+            _superHeroRepository.DeleteSuperHero(id);
+            return NoContent();
 
-            return Ok(await _context.SuperHeroes.ToListAsync());
         }
 
     }
